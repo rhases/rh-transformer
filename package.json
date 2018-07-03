@@ -1,6 +1,6 @@
 {
   "name": "rh-transformer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Transform between two JSON schemas. Easylly integrate with multiple APIs with different schemas.",
   "main": "./dist/index.js",
   "typings": "./dist/index.d.ts",
@@ -33,7 +33,6 @@
     "chai-as-promised": "^7.1.1",
     "chai-subset": "^1.6.0",
     "lodash": "^4.17.5",
-    "log4js": "0.6.38",
     "mocha": "^3.5.3",
     "nock": "^9.2.4",
     "ntypescript": "^1.201706190042.1",
@@ -53,7 +52,6 @@
   "dependencies": {},
   "peerDependencies": {
     "q": "^1.5.0",
-    "lodash": "^4.17.5",
-    "log4js": "0.6.38"
+    "lodash": "^4.17.5"
   }
 }

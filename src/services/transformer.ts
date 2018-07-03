@@ -1,6 +1,5 @@
 'use strict';
 
-var logger = require('../utils/logger.service').getLogger('transformer');
 var _ = require('lodash');
 
 export function transportOut(fields, currentLocal, originalRemote): any {
@@ -18,12 +17,8 @@ export function transport(fields, current, originalFromOtherSide, params): any{
 		originalFromOtherSide = {};
 
 	var toTransport: any = {};
-	//logger.trace('current:' + JSON.stringify(current))
-	//logger.trace('originalFromOtherSide:' + JSON.stringify(originalFromOtherSide))
 	var newOtherSide = translateFields(fields, current, originalFromOtherSide, params)
-	logger.trace(`newOtherSide: ${JSON.stringify(newOtherSide)}`);
 	var data = diff(newOtherSide, originalFromOtherSide); //what have changed
-	logger.trace(`data: ${JSON.stringify(data)}`);
 	toTransport.data = data;
 	setAction(fields, toTransport, current, params); // action:create or action:update, updateId:xx}
 	clearNotUpdatableFields(fields, toTransport, params);
@@ -49,9 +44,6 @@ export function translateFields(fields, curr, last, params){
 		var _value = getValue(data, field, from);
 
 		var _isPush = field.isPush || false;
-
-		logger.trace(`field: ${JSON.stringify(field)}`);
-		logger.trace(`last: ${_.get(last, _path)}, from: ${from}, path: ${JSON.stringify(_path)}, value: ${JSON.stringify(_value)}`);
 
 		if(_value === _.get(last, _path))
 			return; //field should not be updated
@@ -88,8 +80,6 @@ function getValue(data, field, from){
 		value = dic[key];
 	}
 	if(_.isFunction(value)){
-		logger.trace('---- value ----');
-		logger.trace(data);
 		return value(data);
 	}
 	
@@ -97,7 +87,7 @@ function getValue(data, field, from){
 		try {
 			value = field.map(value)
 		}catch(err){
-			logger.error(err);
+			console.error(err);
 		}
 	}
 
@@ -121,10 +111,6 @@ function getId(fields, current, params){
 	})
 	.reduce(function(acc, idField){
 		var value = _.get(current, idField[params.from]);
-		logger.trace('get id: '+ JSON.stringify(idField) +'|' + params.from +'|' +idField[params.from]+'|' + value)
-		logger.trace('------------- current')
-		logger.trace(current);
-		logger.trace('------------- current')
 		return value;
 	}, undefined);
 
@@ -132,7 +118,6 @@ function getId(fields, current, params){
 //updated fields
 function diff(curr, last){
 	var _diff =  _.omitBy(curr, function(v, k) {
-		logger.trace('last '+k+ ' '+ JSON.stringify(last[k]))
 		return (last[k] === v);
 	});
 	return _diff;
@@ -154,7 +139,6 @@ function setNoupIfRequiredFieldNotSet(fields, toTransport, params){
 		return isOk && _.get(toTransport.data, field[params.to]) !== undefined;
 	}, true)
 	if(!allRequiredIsSet){
-		logger.debug(`setting noop. Not all required fields are set.${JSON.stringify(toTransport)} `);
 		toTransport.action = 'noop'; //nothing to change
 		toTransport.data = undefined;
 		return toTransport;
