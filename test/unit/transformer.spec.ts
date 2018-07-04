@@ -1,6 +1,6 @@
 'use strict';
 
-import { transportOut, transportIn } from '../../src/rh-transformer'
+import { transportOut, transportIn, patchsIn } from '../../src/rh-transformer'
 import model from './pipedrive-transformer-model';
 
 var should = require('chai').should();

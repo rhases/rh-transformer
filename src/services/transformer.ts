@@ -1,6 +1,15 @@
 'use strict';
 
+import {
+getValue,
+diff,
+setAction,
+clearNotUpdatableFields,
+setNoupIfRequiredFieldNotSet,
+setNoupIfEmpty } from '../utils/utils';
+
 var _ = require('lodash');
+
 
 export function transportOut(fields, local, remote): any {
 	return transport(fields, local, remote, {from:'local', to: 'remote'})
@@ -17,7 +26,7 @@ export function transport(fields, fromData, toData, params): any{
 		toData = {};
 
 	var toTransport: any = {};
-	var newOtherSide = translateFields(fields, fromData, toData, params)
+	var newOtherSide = createTranslation(fields, fromData, toData, params)
 	var data = diff(newOtherSide, toData); //what have changed
 	toTransport.data = data;
 	setAction(fields, toTransport, fromData, toData, params); // action:create or action:update, updateId:xx}
@@ -29,29 +38,8 @@ export function transport(fields, fromData, toData, params): any{
 	return toTransport;
 }
 
-export function translateFields(fields, curr, last, params){
-	var from = params.from;
-	var to = params.to;
-	var data:any = {};
-	data[params.from] = curr;
-	data[params.to] = last;
-	data.freshData = curr.updatedAt &&
-		last.updatedAt && curr.updatedAt > last.updatedAt ?
-		curr : last;
-
-	return fields.map(function(field){
-		var _path = field[to];
-		var _value = getValue(data, field, from);
-
-		var _isPush = field.isPush || false;
-
-		if(_value === _.get(last, _path))
-			return; //field should not be updated
-		else if(!_value || !_path)
-			return; //field should not be updated
-		else
-			return {path: field[to], value: _value, isPush:_isPush};
-	})
+export function createTranslation(fields, curr, last, params){
+	return translateFields(fields, curr, last, params)
 	.reduce(function(acc, resultField){
 		if(resultField && resultField.isPush){
 			if(!_.get(acc, resultField.path)){
@@ -65,109 +53,37 @@ export function translateFields(fields, curr, last, params){
 	}, {});
 }
 
-function getValue(data, field, from){
-	var value;
-	if (!field.dictionary){
-		value = _.get(data[field.policy], field[from]);
-	}else{
-		/* uses a field dictionary
-		 to translate between local and remote values */
-		var dic = field.dictionary;
-		if(from === 'remote') //reverse de dictionary
-			dic = _.invert(dic);
+export function translateFields(fields, curr, last, params) {
+	let { from, to } = params;
+	let data: any = {};
 
-		var key = _.get(data[field.policy], field[from]);
-		value = dic[key];
-	}
-	if(_.isFunction(value)){
-		return value(data);
-	}
-	
-	if(field.mapFnc && value){
-		try {
-			value = field.map(value)
-		}catch(err){
-			console.error(err);
+	data[params.from] = curr;
+	data[params.to] = last;
+
+	data.freshData = curr.updatedAt &&
+		last.updatedAt && curr.updatedAt > last.updatedAt ?
+		curr : last;
+
+	return fields.map(function (field) {
+		let path = field[to];
+		let value = getValue(data, field, from);
+
+		let _isPush = field.isPush || false;
+
+		if (value === _.get(last, path)) {
+			return; //field should not be updated
 		}
-	}
-
-	return value;
-}
-
-function setAction(fields, toTransport, fromData, toData, params){
-	var _idValue = getIdFrom(fields, fromData, params) 
-		|| getIdTo(fields, toData, params);
-	
-	if(!_idValue){
-		toTransport.action = 'create'
-	}
-	else{
-		toTransport.action = 'update';
-		toTransport.updateId = _idValue;
-	}
-}
-
-/**
- *  Get id from the origin (update with remote reference)
- */
-function getIdFrom(fields, fromData, params){
-	return fields.filter(function(field){ //id of the target
-		return (field.isId && params.to === field.policy)
-	})
-	.reduce(function(acc, idField){
-		var value = _.get(fromData, idField[params.from]);
-		return value;
-	}, undefined);
-
-}
-/**
- *  Get id from the destination (case of a update with local reference)
- */
-function getIdTo(fields, toData, params) {
-	return fields.filter(function (field) { //id of the target
-		return (field.isId)
-	})
-		.reduce(function (acc, idField) {
-			var value = _.get(toData, idField[params.to]);
-			return value;
-		}, undefined);
-
-}
-
-//updated fields
-function diff(curr, last){
-	var _diff =  _.omitBy(curr, function(v, k) {
-		return (last[k] === v);
-	});
-	return _diff;
-}
-
-function clearNotUpdatableFields(fields, toTransport, params){
-	if(toTransport.action === 'update'){
-		fields.forEach(function(field){
-			if(field.createOnly){
-				_.unset(toTransport.data, field[params.to]);
+		else if (!value || !path) {
+			return; //field should not be updated
+		}
+		else {
+			let hasPreviousValue = !!_.get(data[to], path);
+			if (hasPreviousValue) {
+				return { op: 'replace', path, value, isPush: _isPush };
+			} else {
+				return { op: 'add', path, value, isPush: _isPush };
 			}
-		})
-	}
-}
-function setNoupIfRequiredFieldNotSet(fields, toTransport, params){
-	var allRequiredIsSet = fields.filter(function(field){
-		return field.required;
-	}).reduce(function(isOk, field){
-		return isOk && _.get(toTransport.data, field[params.to]) !== undefined;
-	}, true)
-	if(!allRequiredIsSet){
-		toTransport.action = 'noop'; //nothing to change
-		toTransport.data = undefined;
-		return toTransport;
-	}
-
-}
-
-function setNoupIfEmpty(toTransport){
-	if(!toTransport.data || _.isEmpty(toTransport.data)){
-		toTransport.action = 'noop'; //nothing to change
-		return toTransport;
-	}
+		}
+	})
+	.filter(patch => !!patch);
 }
