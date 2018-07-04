@@ -2,25 +2,25 @@
 
 var _ = require('lodash');
 
-export function transportOut(fields, currentLocal, originalRemote): any {
-	return transport(fields, currentLocal, originalRemote, {from:'local', to: 'remote'})
+export function transportOut(fields, local, remote): any {
+	return transport(fields, local, remote, {from:'local', to: 'remote'})
 }
 
-export function transportIn(fields, currentRemote, originalLocal): any {
-	return transport(fields, currentRemote, originalLocal, {from:'remote', to: 'local'})
+export function transportIn(fields, remote, local): any {
+	return transport(fields, remote, local, {from:'remote', to: 'local'})
 }
 
-export function transport(fields, current, originalFromOtherSide, params): any{
-	if(!current || !params)
+export function transport(fields, fromData, toData, params): any{
+	if(!fromData || !params)
 		throw new Error("missing params");
-	if(!originalFromOtherSide)
-		originalFromOtherSide = {};
+	if(!toData)
+		toData = {};
 
 	var toTransport: any = {};
-	var newOtherSide = translateFields(fields, current, originalFromOtherSide, params)
-	var data = diff(newOtherSide, originalFromOtherSide); //what have changed
+	var newOtherSide = translateFields(fields, fromData, toData, params)
+	var data = diff(newOtherSide, toData); //what have changed
 	toTransport.data = data;
-	setAction(fields, toTransport, current, params); // action:create or action:update, updateId:xx}
+	setAction(fields, toTransport, fromData, toData, params); // action:create or action:update, updateId:xx}
 	clearNotUpdatableFields(fields, toTransport, params);
 	if (params.to === 'remote ') {
 		setNoupIfRequiredFieldNotSet(fields, toTransport, params);
@@ -94,8 +94,10 @@ function getValue(data, field, from){
 	return value;
 }
 
-function setAction(fields, toTransport, current, params){
-	var _idValue = getId(fields, current, params);
+function setAction(fields, toTransport, fromData, toData, params){
+	var _idValue = getIdFrom(fields, fromData, params) 
+		|| getIdTo(fields, toData, params);
+	
 	if(!_idValue){
 		toTransport.action = 'create'
 	}
@@ -105,16 +107,33 @@ function setAction(fields, toTransport, current, params){
 	}
 }
 
-function getId(fields, current, params){
+/**
+ *  Get id from the origin (update with remote reference)
+ */
+function getIdFrom(fields, fromData, params){
 	return fields.filter(function(field){ //id of the target
 		return (field.isId && params.to === field.policy)
 	})
 	.reduce(function(acc, idField){
-		var value = _.get(current, idField[params.from]);
+		var value = _.get(fromData, idField[params.from]);
 		return value;
 	}, undefined);
 
 }
+/**
+ *  Get id from the destination (case of a update with local reference)
+ */
+function getIdTo(fields, toData, params) {
+	return fields.filter(function (field) { //id of the target
+		return (field.isId)
+	})
+		.reduce(function (acc, idField) {
+			var value = _.get(toData, idField[params.to]);
+			return value;
+		}, undefined);
+
+}
+
 //updated fields
 function diff(curr, last){
 	var _diff =  _.omitBy(curr, function(v, k) {

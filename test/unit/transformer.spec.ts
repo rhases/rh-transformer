@@ -3,7 +3,6 @@
 import { transportOut, transportIn } from '../../src/rh-transformer'
 import model from './pipedrive-transformer-model';
 
-var logger = require('../../src/utils/logger.service').getLogger('transformer.spec');
 var should = require('chai').should();
 var _ = require('lodash');
 
@@ -34,34 +33,37 @@ describe('Transformer:', function() {
 
 	var pdDeal = {
 		id:1,
-		title:"Maria Silva"
+		title:"Maria Silva",
+		value: 500
 	};
 
   it('should return a pipedrive Deals from Local Deal', function() {
   	var transport = transportOut(model.Deals.fields, localDeal, {});
-		logger.info('trasnport:'+JSON.stringify(transport));
 		transport.data.title.should.be.equals(localDeal.title);
 		transport.data.org_id.should.be.equals(localDeal.pipedrive.org_id);
   });
 
 	it('should set existing remote field into local according to policy', function() {
   	var transport = transportIn(model.Deals.fields, pdDeal, {});
-		logger.debug('transport:'+JSON.stringify(transport));
 		transport.data.pipedrive.id.should.be.equals(pdDeal.id);
   });
 
 	it('should not set existing remote field into local according to policy', function() {
   	var transport = transportIn(model.Deals.fields,{}, pdDeal);
-		logger.debug('transport:'+JSON.stringify(transport));
 		should.not.exist(transport.title);
   });
 
 	it('should transform origin into a update if has ID', function() {
 		var transport = transportOut(model.Deals.fields, localDeal2, pdDeal);
-		logger.debug('toTransport:'+JSON.stringify(transport));
 		transport.action.should.be.equals('update');
 		transport.updateId.should.be.equals(1);
 		transport.data.title.should.be.equals(localDeal2.title);
 	});
 
+	it('should transform origin remote into a local update if has ID ', function () {
+		var transport = transportIn(model.Deals.fields, pdDeal, localDeal2);
+		transport.action.should.be.equals('update');
+		transport.updateId.should.be.equals('571bc31d121a6e03007632b5');
+		transport.data.potentialValue.should.be.equals(pdDeal.value);
+	});
 });
