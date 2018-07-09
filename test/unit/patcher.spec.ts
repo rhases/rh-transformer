@@ -44,6 +44,7 @@ describe('Transformer:', function() {
 		operation.id.should.be.equals('571bc31d121a6e03007632b5');
 		operation.action.should.be.equals('patch');
 		operation.patches[0].op.should.be.equals('replace');
+		operation.patches[0].path.should.be.equals('/title');
 		operation.patches[0].value.should.be.equals(pdDeal.title);
 	});
 });
