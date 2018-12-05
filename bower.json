@@ -1,0 +1,21 @@
+{
+  "name": "rh-transformer",
+  "description": "Transform between two JSON schemas. Easylly integrate with multiple APIs with different schemas.",
+  "main": "./dist/index.js",
+  "authors": [
+    "Gabriel Rodrigues"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "model",
+    "transformation"
+  ],
+  "homepage": "https://github.com/rhases/rh-transformer",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
