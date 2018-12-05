@@ -30,7 +30,7 @@ node_modules
 .DS_Store
 
 #Allow only web browser to be versioned
-dist/*
+#dist/*
 
 #Yarn
 yarn.lock
